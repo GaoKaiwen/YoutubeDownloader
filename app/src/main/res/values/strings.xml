@@ -1,0 +1,5 @@
+<resources>
+    <string name="app_name">YoutubeDownloader</string>
+    <string name="baixar">Baixar</string>
+    <string name="cole_o_link_do_youtube_aqui">Cole o link do Youtube aqui</string>
+</resources>
