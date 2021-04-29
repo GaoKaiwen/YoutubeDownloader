@@ -20,11 +20,11 @@
         app:layout_constraintTop_toTopOf="parent" />
 
     <Button
-        android:id="@+id/saveBttn"
+        android:id="@+id/findBttn"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:onClick="download"
-        android:text="@string/baixar"
+        android:onClick="findButton"
+        android:text="@string/procurar"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@+id/linkText" />
@@ -39,7 +39,7 @@
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintHorizontal_bias="0.498"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/saveBttn" />
+        app:layout_constraintTop_toBottomOf="@+id/findBttn" />
 
     <Spinner
         android:id="@+id/videosResolution"
@@ -51,12 +51,42 @@
         tools:layout_editor_absoluteX="0dp" />
 
     <Button
-        android:id="@+id/findButton"
+        android:id="@+id/saveBttn"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
+        android:layout_marginTop="40dp"
+        android:onClick="downloadButton"
+        android:text="@string/baixar"
+        android:visibility="invisible"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintHorizontal_bias="0.498"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/searchDirBttn" />
+
+    <ImageButton
+        android:id="@+id/searchDirBttn"
+        android:layout_width="67dp"
+        android:layout_height="78dp"
         android:layout_marginTop="44dp"
-        android:onClick="downloadButtonDownload"
-        android:text="Button"
+        android:contentDescription="TODO"
+        android:onClick="openDirectory"
+        android:visibility="invisible"
+        app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@+id/videosResolution"
-        tools:layout_editor_absoluteX="159dp" />
+        app:srcCompat="@android:drawable/sym_contact_card" />
+
+    <TextView
+        android:id="@+id/directoryText"
+        android:layout_width="314dp"
+        android:layout_height="76dp"
+        android:layout_marginStart="32dp"
+        android:layout_marginLeft="32dp"
+        android:layout_marginTop="44dp"
+        android:layout_marginEnd="8dp"
+        android:layout_marginRight="8dp"
+        android:visibility="invisible"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintHorizontal_bias="0.0"
+        app:layout_constraintStart_toEndOf="@+id/searchDirBttn"
+        app:layout_constraintTop_toBottomOf="@+id/videosResolution" />
 </androidx.constraintlayout.widget.ConstraintLayout>
