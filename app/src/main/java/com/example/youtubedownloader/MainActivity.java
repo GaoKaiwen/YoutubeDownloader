@@ -7,6 +7,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.net.Uri;
+import android.os.AsyncTask;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Environment;
@@ -35,6 +36,12 @@ import com.github.kiulian.downloader.model.formats.AudioVideoFormat;
 import com.github.kiulian.downloader.model.playlist.YoutubePlaylist;
 
 import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.util.LinkedList;
 import java.util.List;
 
@@ -57,6 +64,8 @@ public class MainActivity extends AppCompatActivity {
     private String pathToDownload;
     private AudioVideoFormat audioVideoFormat;
     private List<AudioVideoFormat> videoWithAudioFormats;
+    private String path;
+
 
 
     final int[] qualityPosition = new int[1];
@@ -177,15 +186,15 @@ public class MainActivity extends AppCompatActivity {
         if (Build.VERSION.SDK_INT >= 23) {
             if (checkSelfPermission(android.Manifest.permission.WRITE_EXTERNAL_STORAGE)
                     == PackageManager.PERMISSION_GRANTED) {
-                String mBaseFolderPath = Environment
-                        .getExternalStorageDirectory()
-                        + File.separator
-                        + "FolderName" + File.separator;
-                if (!new File(mBaseFolderPath).exists()) {
-                    new File(mBaseFolderPath).mkdir();
-                }
-
-                String mFilePath = "file://" + mBaseFolderPath + "/" + "teste";
+//                String mBaseFolderPath = Environment
+//                        .getExternalStorageDirectory()
+//                        + File.separator
+//                        + "FolderName" + File.separator;
+//                if (!new File(mBaseFolderPath).exists()) {
+//                    new File(mBaseFolderPath).mkdir();
+//                }
+//
+//                String mFilePath = "file://" + mBaseFolderPath + "/" + "teste";
 
                 DownloadManager.Request request = new DownloadManager.Request(Uri.parse(url))
                         .setTitle(title)
@@ -197,7 +206,11 @@ public class MainActivity extends AppCompatActivity {
 
                 DownloadManager mDownloadManager = (DownloadManager) this.getSystemService(Context.DOWNLOAD_SERVICE);
                 long downloadId = mDownloadManager.enqueue(request);
-                Toast.makeText(this,"Iniciando donwload",Toast.LENGTH_LONG).show();
+                runOnUiThread(new Runnable() {
+                    public void run() {
+                        Toast.makeText(MainActivity.this, "Iniciando donwload", Toast.LENGTH_LONG).show();
+                    }
+                });
                 return true;
             } else {
 
@@ -216,7 +229,8 @@ public class MainActivity extends AppCompatActivity {
 
     public void downloadButton(View v) {
         videoURL = videoWithAudioFormats.get(qualityPosition[0]).url();
-        downloadVideo(details.title(), videoURL);
+        new DownloadAsync().execute();
+
     }
 
     public void openDirectory(View v) {
@@ -225,8 +239,6 @@ public class MainActivity extends AppCompatActivity {
             i.addCategory(Intent.CATEGORY_DEFAULT);
             startActivityForResult(Intent.createChooser(i, "Choose directory"), 9999);
         }
-
-
     }
 
     @Override
@@ -238,19 +250,79 @@ public class MainActivity extends AppCompatActivity {
                 Uri uri = data.getData();
                 File file = new File(uri.getPath());
                 final String[] split = file.getPath().split(":");//split the path.
-                pathToDownload = split[1];//assign it to a string(your choice).
+                path = split[1];//assign it to a string(your choice).
+                System.out.println(path);
+                if(path.split("/0").length > 1) {
+                    pathToDownload = path.split("0/")[1];
+                } else {
+                    pathToDownload = path;
+                }
                 directoryText.setText(pathToDownload);
                 break;
         }
     }
 
-    public String parsePath(String path) {
-        String[] pathAux = path.split("%3A");
-//        if(pathAux[1].contains("%2F")) {
-//            pathAux[1]
-//        }
-        return "";
+    private void moveFile(String inputPath, String inputFile, String outputPath) {
+
+        InputStream in = null;
+        OutputStream out = null;
+        try {
+
+            //create output directory if it doesn't exist
+            File dir = new File (outputPath);
+            if (!dir.exists())
+            {
+                dir.mkdirs();
+            }
+
+
+            in = new FileInputStream(inputPath + inputFile);
+            out = new FileOutputStream(outputPath + inputFile);
+
+            byte[] buffer = new byte[1024];
+            int read;
+            while ((read = in.read(buffer)) != -1) {
+                out.write(buffer, 0, read);
+            }
+            in.close();
+            in = null;
+
+            // write the output file
+            out.flush();
+            out.close();
+            out = null;
+
+            // delete the original file
+            new File(inputPath + inputFile).delete();
+
+
+        }
+
+        catch (FileNotFoundException fnfe1) {
+            Log.e("tag", fnfe1.getMessage());
+        }
+        catch (Exception e) {
+            Log.e("tag", e.getMessage());
+        }
 
     }
 
+    private class DownloadAsync extends AsyncTask<Void, Void, Void>
+    {
+        @Override
+        protected Void doInBackground(Void... params) {
+            downloadVideo(details.title(), videoURL);
+            return null;
+        }
+        @Override
+        protected void onPostExecute(Void result) {
+//            moveFile(pathToDownload, details.title(), path);
+//            System.out.println("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"+path);
+//            runOnUiThread(new Runnable() {
+//                public void run() {
+//                    Toast.makeText(MainActivity.this, "Movendo vídeo", Toast.LENGTH_LONG).show();
+//                }
+//            });
+        }
+    }
 }
