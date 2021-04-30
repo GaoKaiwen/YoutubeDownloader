@@ -1,9 +1,11 @@
 package com.example.youtubedownloader;
 
 import android.Manifest;
+import android.app.AlertDialog;
 import android.app.DownloadManager;
 import android.app.ProgressDialog;
 import android.content.Context;
+import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.net.Uri;
@@ -23,10 +25,12 @@ import android.widget.Spinner;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.annotation.RequiresApi;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
+import androidx.core.content.ContextCompat;
 
 import com.github.kiulian.downloader.YoutubeDownloader;
 import com.github.kiulian.downloader.YoutubeException;
@@ -49,6 +53,7 @@ public class MainActivity extends AppCompatActivity {
 
     // Progress Dialog
     private ProgressDialog pDialog;
+    private int STORAGE_PERMISSION_CODE = 1;
     public static final int progress_bar_type = 0;
 
     EditText linkText;
@@ -107,7 +112,7 @@ public class MainActivity extends AppCompatActivity {
 
     }
 
-    public void getVideo() {
+    private void getVideo() {
         YoutubeDownloader downloader = new YoutubeDownloader();
 
         downloader.addCipherFunctionPattern(2, "\\b([a-zA-Z0-9$]{2})\\s*=\\s*function\\(\\s*a\\s*\\)\\s*\\{\\s*a\\s*=\\s*a\\.split\\(\\s*\"\"\\s*\\)");
@@ -163,7 +168,7 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-    public void getPlayist() {
+    private void getPlayist() {
         YoutubeDownloader downloader = new YoutubeDownloader();
 
         downloader.addCipherFunctionPattern(2, "\\b([a-zA-Z0-9$]{2})\\s*=\\s*function\\(\\s*a\\s*\\)\\s*\\{\\s*a\\s*=\\s*a\\.split\\(\\s*\"\"\\s*\\)");
@@ -181,11 +186,9 @@ public class MainActivity extends AppCompatActivity {
 
     }
 
-    public boolean downloadVideo(String title, String url) {
-
-        if (Build.VERSION.SDK_INT >= 23) {
-            if (checkSelfPermission(android.Manifest.permission.WRITE_EXTERNAL_STORAGE)
-                    == PackageManager.PERMISSION_GRANTED) {
+    @RequiresApi(api = Build.VERSION_CODES.M)
+    private void downloadVideo(String title, String url) {
+        if(ContextCompat.checkSelfPermission(MainActivity.this, Manifest.permission.WRITE_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED) {
 //                String mBaseFolderPath = Environment
 //                        .getExternalStorageDirectory()
 //                        + File.separator
@@ -196,35 +199,58 @@ public class MainActivity extends AppCompatActivity {
 //
 //                String mFilePath = "file://" + mBaseFolderPath + "/" + "teste";
 
-                DownloadManager.Request request = new DownloadManager.Request(Uri.parse(url))
-                        .setTitle(title)
-                        .setDescription("Downloading")
-                        .setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
-                        .setDestinationInExternalPublicDir(pathToDownload, title)
-                        .setAllowedOverMetered(true)
-                        .setAllowedOverRoaming(true);
+            DownloadManager.Request request = new DownloadManager.Request(Uri.parse(url))
+                    .setTitle(title)
+                    .setDescription("Downloading")
+                    .setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
+                    .setDestinationInExternalPublicDir(pathToDownload, title)
+                    .setAllowedOverMetered(true)
+                    .setAllowedOverRoaming(true);
 
-                DownloadManager mDownloadManager = (DownloadManager) this.getSystemService(Context.DOWNLOAD_SERVICE);
-                long downloadId = mDownloadManager.enqueue(request);
-                runOnUiThread(new Runnable() {
-                    public void run() {
-                        Toast.makeText(MainActivity.this, "Iniciando donwload", Toast.LENGTH_LONG).show();
-                    }
-                });
-                return true;
+            DownloadManager mDownloadManager = (DownloadManager) this.getSystemService(Context.DOWNLOAD_SERVICE);
+            long downloadId = mDownloadManager.enqueue(request);
+            runOnUiThread(new Runnable() {
+                public void run() {
+                    Toast.makeText(MainActivity.this, "Iniciando donwload", Toast.LENGTH_LONG).show();
+                }
+            });
+        } else {
+            requestStoragePermission();
+        }
+    }
+
+    private void requestStoragePermission() {
+        if(ActivityCompat.shouldShowRequestPermissionRationale(this, Manifest.permission.WRITE_EXTERNAL_STORAGE)) {
+            new AlertDialog.Builder(this)
+                    .setTitle("Permissão necessária")
+                    .setMessage("Esta permissão é necessária pois o aplicativo irá fazer transfêrencia na memória interna")
+                    .setPositiveButton("OK", new DialogInterface.OnClickListener() {
+                        @Override
+                        public void onClick(DialogInterface dialog, int which) {
+                            ActivityCompat.requestPermissions(MainActivity.this, new String[] {Manifest.permission.WRITE_EXTERNAL_STORAGE}, STORAGE_PERMISSION_CODE);
+                        }
+                    })
+                    .setNegativeButton("Cancelar", new DialogInterface.OnClickListener() {
+                        @Override
+                        public void onClick(DialogInterface dialog, int which) {
+                            dialog.dismiss();
+                        }
+                    })
+                    .create().show();
+        } else {
+            ActivityCompat.requestPermissions(this, new String[] {Manifest.permission.WRITE_EXTERNAL_STORAGE}, STORAGE_PERMISSION_CODE);
+        }
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
+        if(requestCode == STORAGE_PERMISSION_CODE) {
+            if(grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                Toast.makeText(this, "Permissão concedida", Toast.LENGTH_SHORT).show();
             } else {
-
-                Log.e("Permission error","You have asked for permission");
-                ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.WRITE_EXTERNAL_STORAGE}, 1);
-                return downloadVideo(title, url);
+                Toast.makeText(this, "Permissão negada", Toast.LENGTH_SHORT).show();
             }
         }
-        else { //you dont need to worry about these stuff below api level 23
-            Log.e("Permission error","You already have the permission");
-            return downloadVideo(title, url);
-        }
-
-
     }
 
     public void downloadButton(View v) {
@@ -237,7 +263,7 @@ public class MainActivity extends AppCompatActivity {
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.LOLLIPOP){
             Intent i = new Intent(Intent.ACTION_OPEN_DOCUMENT_TREE);
             i.addCategory(Intent.CATEGORY_DEFAULT);
-            startActivityForResult(Intent.createChooser(i, "Choose directory"), 9999);
+            startActivityForResult(Intent.createChooser(i, "Escolha o diretório"), 9999);
         }
     }
 
@@ -251,64 +277,60 @@ public class MainActivity extends AppCompatActivity {
                 File file = new File(uri.getPath());
                 final String[] split = file.getPath().split(":");//split the path.
                 path = split[1];//assign it to a string(your choice).
-                System.out.println(path);
-                if(path.split("/0").length > 1) {
-                    pathToDownload = path.split("0/")[1];
+                if(path.split("0/").length > 1) {
+                    pathToDownload = path.split("0/")[1].split("/")[0];
                 } else {
-                    pathToDownload = path;
+                    pathToDownload = path.split("/")[0];
                 }
                 directoryText.setText(pathToDownload);
                 break;
         }
     }
 
-    private void moveFile(String inputPath, String inputFile, String outputPath) {
+    private static boolean moveFile(File source, String destPath){
+        if(source.exists()){
+            System.out.println("BBBBBBBBBBBBBBBBBBBBBBBBBB");
+            File dest = new File(destPath);
+            checkMakeDirs(dest.getParent());
+            try (FileInputStream fis = new FileInputStream(source);
+                 FileOutputStream fos = new FileOutputStream(dest)){
+                if(!dest.exists()){
+                    dest.createNewFile();
+                }
+                writeToOutputStream(fis, fos);
+                source.delete();
+                return true;
+            } catch (IOException ioE){
+                Log.e("TAG", ioE.getMessage());
+            }
+        }
+        return false;
+    }
 
-        InputStream in = null;
-        OutputStream out = null;
+    private static void writeToOutputStream(InputStream is, OutputStream os) throws IOException {
+        byte[] buffer = new byte[1024];
+        int length;
+        if (is != null) {
+            while ((length = is.read(buffer)) > 0x0) {
+                os.write(buffer, 0x0, length);
+            }
+        }
+        os.flush();
+    }
+
+    private static boolean checkMakeDirs(String dirPath){
         try {
-
-            //create output directory if it doesn't exist
-            File dir = new File (outputPath);
-            if (!dir.exists())
-            {
-                dir.mkdirs();
-            }
-
-
-            in = new FileInputStream(inputPath + inputFile);
-            out = new FileOutputStream(outputPath + inputFile);
-
-            byte[] buffer = new byte[1024];
-            int read;
-            while ((read = in.read(buffer)) != -1) {
-                out.write(buffer, 0, read);
-            }
-            in.close();
-            in = null;
-
-            // write the output file
-            out.flush();
-            out.close();
-            out = null;
-
-            // delete the original file
-            new File(inputPath + inputFile).delete();
-
-
+            File dir = new File(dirPath);
+            return dir.exists() || dir.mkdirs();
+        } catch (Exception e) {
+            Log.e("TAG", e.getMessage());
         }
-
-        catch (FileNotFoundException fnfe1) {
-            Log.e("tag", fnfe1.getMessage());
-        }
-        catch (Exception e) {
-            Log.e("tag", e.getMessage());
-        }
-
+        return false;
     }
 
     private class DownloadAsync extends AsyncTask<Void, Void, Void>
     {
+        @RequiresApi(api = Build.VERSION_CODES.M)
         @Override
         protected Void doInBackground(Void... params) {
             downloadVideo(details.title(), videoURL);
@@ -316,13 +338,16 @@ public class MainActivity extends AppCompatActivity {
         }
         @Override
         protected void onPostExecute(Void result) {
-//            moveFile(pathToDownload, details.title(), path);
-//            System.out.println("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"+path);
-//            runOnUiThread(new Runnable() {
-//                public void run() {
-//                    Toast.makeText(MainActivity.this, "Movendo vídeo", Toast.LENGTH_LONG).show();
-//                }
-//            });
+            Uri uri = Uri.parse(pathToDownload);
+            moveFile(new File(pathToDownload+File.separator+details.title()), path);
+            System.out.println("BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB"+new File(pathToDownload+File.separator+details.title()).getPath());
+            System.out.println("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"+path);
+            runOnUiThread(new Runnable() {
+                public void run() {
+                    Toast.makeText(MainActivity.this, "Movendo vídeo", Toast.LENGTH_LONG).show();
+                }
+            });
+//            moveFile(new File(Environment.DIRECTORY_DCIM+File.separator+"Camera"+"20201108_152137.jpg"), Environment.DIRECTORY_DOWNLOADS);
         }
     }
 }
