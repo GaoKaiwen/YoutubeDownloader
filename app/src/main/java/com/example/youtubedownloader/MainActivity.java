@@ -1,12 +1,15 @@
 package com.example.youtubedownloader;
 
 import android.Manifest;
+import android.app.Activity;
 import android.app.AlertDialog;
 import android.app.DownloadManager;
 import android.app.ProgressDialog;
+import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.content.pm.PackageManager;
 import android.net.Uri;
 import android.os.AsyncTask;
@@ -41,7 +44,6 @@ import com.github.kiulian.downloader.model.playlist.YoutubePlaylist;
 
 import java.io.File;
 import java.io.FileInputStream;
-import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -53,7 +55,13 @@ public class MainActivity extends AppCompatActivity {
 
     // Progress Dialog
     private ProgressDialog pDialog;
-    private int STORAGE_PERMISSION_CODE = 1;
+    private int WIRTE_STORAGE_PERMISSION_CODE = 1;
+    private int READ_STORAGE_PERMISSION_CODE = 2;
+    private static final int REQUEST_EXTERNAL_STORAGE = 1;
+    private static String[] PERMISSIONS_STORAGE = {
+            Manifest.permission.READ_EXTERNAL_STORAGE,
+            Manifest.permission.WRITE_EXTERNAL_STORAGE
+    };
     public static final int progress_bar_type = 0;
 
     EditText linkText;
@@ -70,6 +78,7 @@ public class MainActivity extends AppCompatActivity {
     private AudioVideoFormat audioVideoFormat;
     private List<AudioVideoFormat> videoWithAudioFormats;
     private String path;
+    private long downloadId;
 
 
 
@@ -82,6 +91,7 @@ public class MainActivity extends AppCompatActivity {
         setContentView(R.layout.activity_main);
         StrictMode.ThreadPolicy policy = new StrictMode.ThreadPolicy.Builder().permitAll().build();
         StrictMode.setThreadPolicy(policy);
+//        registerReceiver(onComplete, new IntentFilter(DownloadManager.ACTION_DOWNLOAD_COMPLETE));
 
         linkText = ((EditText)findViewById(R.id.linkText));
         findBttn = ((Button)findViewById(R.id.findBttn));
@@ -98,6 +108,34 @@ public class MainActivity extends AppCompatActivity {
             Toast.makeText(this,link.toString(),Toast.LENGTH_LONG).show();
             findButton(findBttn);
         }
+        BroadcastReceiver onComplete=new BroadcastReceiver() {
+            public void onReceive(Context ctxt, Intent intent) {
+                String action = intent.getAction();
+                if (DownloadManager.ACTION_DOWNLOAD_COMPLETE.equals(action)) {
+                    if(ContextCompat.checkSelfPermission(MainActivity.this, Manifest.permission.READ_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED) {
+                        moveFile(new File(Environment.getExternalStorageDirectory().toString() + File.separator + pathToDownload + File.separator + details.title()),  Environment.getExternalStorageDirectory().toString() + File.separator + File.separator + path);
+                        Log.e("File Path", new File(pathToDownload + File.separator + details.title()).getPath());
+                        Log.e("Path", path);
+                        runOnUiThread(new Runnable() {
+                            public void run() {
+                                Toast.makeText(MainActivity.this, "Movendo vídeo", Toast.LENGTH_LONG).show();
+                            }
+                        });
+                    }else {
+                        requestReadStoragePermission();
+                        moveFile(new File(Environment.getExternalStorageDirectory().toString() + File.separator + pathToDownload + File.separator + details.title()),  Environment.getExternalStorageDirectory().toString() + File.separator + File.separator + path);
+                        runOnUiThread(new Runnable() {
+                            public void run() {
+                                Toast.makeText(MainActivity.this, "Movendo vídeo", Toast.LENGTH_LONG).show();
+                            }
+                        });
+                    }
+                }
+            }
+        };
+
+        registerReceiver(onComplete, new IntentFilter(
+                DownloadManager.ACTION_DOWNLOAD_COMPLETE));
     }
 
     @RequiresApi(api = Build.VERSION_CODES.N)
@@ -125,6 +163,7 @@ public class MainActivity extends AppCompatActivity {
         YoutubeVideo video = null;
         try {
             video = downloader.getVideo(videoID);
+
 
             // get videos with audio
             videoWithAudioFormats = video.videoWithAudioFormats();
@@ -208,18 +247,18 @@ public class MainActivity extends AppCompatActivity {
                     .setAllowedOverRoaming(true);
 
             DownloadManager mDownloadManager = (DownloadManager) this.getSystemService(Context.DOWNLOAD_SERVICE);
-            long downloadId = mDownloadManager.enqueue(request);
+            downloadId = mDownloadManager.enqueue(request);
             runOnUiThread(new Runnable() {
                 public void run() {
                     Toast.makeText(MainActivity.this, "Iniciando donwload", Toast.LENGTH_LONG).show();
                 }
             });
         } else {
-            requestStoragePermission();
+            requestWriteStoragePermission();
         }
     }
 
-    private void requestStoragePermission() {
+    private void requestWriteStoragePermission() {
         if(ActivityCompat.shouldShowRequestPermissionRationale(this, Manifest.permission.WRITE_EXTERNAL_STORAGE)) {
             new AlertDialog.Builder(this)
                     .setTitle("Permissão necessária")
@@ -227,7 +266,7 @@ public class MainActivity extends AppCompatActivity {
                     .setPositiveButton("OK", new DialogInterface.OnClickListener() {
                         @Override
                         public void onClick(DialogInterface dialog, int which) {
-                            ActivityCompat.requestPermissions(MainActivity.this, new String[] {Manifest.permission.WRITE_EXTERNAL_STORAGE}, STORAGE_PERMISSION_CODE);
+                            ActivityCompat.requestPermissions(MainActivity.this, new String[] {Manifest.permission.WRITE_EXTERNAL_STORAGE}, WIRTE_STORAGE_PERMISSION_CODE);
                         }
                     })
                     .setNegativeButton("Cancelar", new DialogInterface.OnClickListener() {
@@ -238,13 +277,43 @@ public class MainActivity extends AppCompatActivity {
                     })
                     .create().show();
         } else {
-            ActivityCompat.requestPermissions(this, new String[] {Manifest.permission.WRITE_EXTERNAL_STORAGE}, STORAGE_PERMISSION_CODE);
+            ActivityCompat.requestPermissions(this, new String[] {Manifest.permission.WRITE_EXTERNAL_STORAGE}, WIRTE_STORAGE_PERMISSION_CODE);
+            moveFile(new File(Environment.getExternalStorageDirectory().toString() + File.separator + pathToDownload + File.separator + details.title() + ".mp4"), path);
+            runOnUiThread(new Runnable() {
+                public void run() {
+                    Toast.makeText(MainActivity.this, "Movendo vídeo", Toast.LENGTH_LONG).show();
+                }
+            });
+        }
+    }
+
+    private void requestReadStoragePermission() {
+        if(ActivityCompat.shouldShowRequestPermissionRationale(this, Manifest.permission.READ_EXTERNAL_STORAGE)) {
+            new AlertDialog.Builder(this)
+                    .setTitle("Permissão necessária")
+                    .setMessage("Esta permissão é necessária pois o aplicativo irá ler na memória interna")
+                    .setPositiveButton("OK", new DialogInterface.OnClickListener() {
+                        @Override
+                        public void onClick(DialogInterface dialog, int which) {
+                            ActivityCompat.requestPermissions(MainActivity.this, new String[] {Manifest.permission.READ_EXTERNAL_STORAGE}, READ_STORAGE_PERMISSION_CODE);
+                        }
+                    })
+                    .setNegativeButton("Cancelar", new DialogInterface.OnClickListener() {
+                        @Override
+                        public void onClick(DialogInterface dialog, int which) {
+                            dialog.dismiss();
+                        }
+                    })
+                    .create().show();
+        } else {
+            ActivityCompat.requestPermissions(this, new String[] {Manifest.permission.READ_EXTERNAL_STORAGE}, READ_STORAGE_PERMISSION_CODE);
+
         }
     }
 
     @Override
     public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
-        if(requestCode == STORAGE_PERMISSION_CODE) {
+        if(requestCode == WIRTE_STORAGE_PERMISSION_CODE) {
             if(grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
                 Toast.makeText(this, "Permissão concedida", Toast.LENGTH_SHORT).show();
             } else {
@@ -282,15 +351,31 @@ public class MainActivity extends AppCompatActivity {
                 } else {
                     pathToDownload = path.split("/")[0];
                 }
-                directoryText.setText(pathToDownload);
+                directoryText.setText(path);
                 break;
         }
     }
 
+    public static void verifyStoragePermissions(Activity activity) {
+        // Check if we have write permission
+        int permission = ActivityCompat.checkSelfPermission(activity, Manifest.permission.WRITE_EXTERNAL_STORAGE);
+
+        if (permission != PackageManager.PERMISSION_GRANTED) {
+            // We don't have permission so prompt the user
+            ActivityCompat.requestPermissions(
+                    activity,
+                    PERMISSIONS_STORAGE,
+                    REQUEST_EXTERNAL_STORAGE
+            );
+        }
+    }
+
     private static boolean moveFile(File source, String destPath){
+//        verifyStoragePermissions(MainActivity.this);
+        Log.e("moveFile", source.exists()+source.getName()+source.getTotalSpace());
         if(source.exists()){
-            System.out.println("BBBBBBBBBBBBBBBBBBBBBBBBBB");
-            File dest = new File(destPath);
+            Log.e("moveFile", destPath);
+            File dest = new File(destPath + File.separator + source.getName());
             checkMakeDirs(dest.getParent());
             try (FileInputStream fis = new FileInputStream(source);
                  FileOutputStream fos = new FileOutputStream(dest)){
@@ -338,16 +423,10 @@ public class MainActivity extends AppCompatActivity {
         }
         @Override
         protected void onPostExecute(Void result) {
-            Uri uri = Uri.parse(pathToDownload);
-            moveFile(new File(pathToDownload+File.separator+details.title()), path);
-            System.out.println("BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB"+new File(pathToDownload+File.separator+details.title()).getPath());
-            System.out.println("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"+path);
-            runOnUiThread(new Runnable() {
-                public void run() {
-                    Toast.makeText(MainActivity.this, "Movendo vídeo", Toast.LENGTH_LONG).show();
-                }
-            });
+
 //            moveFile(new File(Environment.DIRECTORY_DCIM+File.separator+"Camera"+"20201108_152137.jpg"), Environment.DIRECTORY_DOWNLOADS);
         }
     }
+
+
 }
