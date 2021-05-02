@@ -3,6 +3,7 @@ package com.example.youtubedownloader;
 import android.Manifest;
 import android.app.Activity;
 import android.app.AlertDialog;
+import android.app.AsyncNotedAppOp;
 import android.app.DownloadManager;
 import android.app.ProgressDialog;
 import android.content.BroadcastReceiver;
@@ -40,6 +41,7 @@ import com.github.kiulian.downloader.YoutubeException;
 import com.github.kiulian.downloader.model.VideoDetails;
 import com.github.kiulian.downloader.model.YoutubeVideo;
 import com.github.kiulian.downloader.model.formats.AudioVideoFormat;
+import com.github.kiulian.downloader.model.playlist.PlaylistVideoDetails;
 import com.github.kiulian.downloader.model.playlist.YoutubePlaylist;
 
 import java.io.File;
@@ -48,6 +50,7 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
 
@@ -208,21 +211,7 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void getPlayist() {
-        YoutubeDownloader downloader = new YoutubeDownloader();
-
-        downloader.addCipherFunctionPattern(2, "\\b([a-zA-Z0-9$]{2})\\s*=\\s*function\\(\\s*a\\s*\\)\\s*\\{\\s*a\\s*=\\s*a\\.split\\(\\s*\"\"\\s*\\)");
-        // extractor features
-        downloader.setParserRequestProperty("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/72.0.3626.121 Safari/537.36");
-        downloader.setParserRetryOnFailure(1);
-
-        String playlistID = linkText.getText().toString();
-        playlistID = playlistID.replace("https://youtube.com/playlist?list=", "");
-        try {
-            YoutubePlaylist playlist = downloader.getPlaylist(playlistID);
-        } catch (YoutubeException e) {
-            e.printStackTrace();
-        }
-
+        new PlaylistVideos().execute();
     }
 
     @RequiresApi(api = Build.VERSION_CODES.M)
@@ -425,6 +414,35 @@ public class MainActivity extends AppCompatActivity {
         protected void onPostExecute(Void result) {
 
 //            moveFile(new File(Environment.DIRECTORY_DCIM+File.separator+"Camera"+"20201108_152137.jpg"), Environment.DIRECTORY_DOWNLOADS);
+        }
+    }
+
+    private class PlaylistVideos extends AsyncTask<Void, Void, Void> {
+
+        @Override
+        protected Void doInBackground(Void... voids) {
+            YoutubeDownloader downloader = new YoutubeDownloader();
+
+            downloader.addCipherFunctionPattern(2, "\\b([a-zA-Z0-9$]{2})\\s*=\\s*function\\(\\s*a\\s*\\)\\s*\\{\\s*a\\s*=\\s*a\\.split\\(\\s*\"\"\\s*\\)");
+            // extractor features
+            downloader.setParserRequestProperty("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/72.0.3626.121 Safari/537.36");
+            downloader.setParserRetryOnFailure(1);
+
+            String playlistID = linkText.getText().toString();
+            playlistID = playlistID.replace("https://youtube.com/playlist?list=", "");
+            try {
+                YoutubePlaylist playlist = downloader.getPlaylist(playlistID);
+                List<PlaylistVideoDetails> playlistVideosDetails = playlist.videos();
+                List<YoutubeVideo> videos = new ArrayList<>();
+                for(PlaylistVideoDetails playlistVideoDetails : playlistVideosDetails) {
+                    videos.add(downloader.getVideo(playlistVideoDetails.videoId()));
+                    Log.e("Playlist ID", downloader.getVideo(playlistVideoDetails.videoId()).details().title());
+                }
+            } catch (YoutubeException e) {
+                textView.setText("Link corrompido");
+                textView.setVisibility(View.VISIBLE);
+            }
+            return null;
         }
     }
 
