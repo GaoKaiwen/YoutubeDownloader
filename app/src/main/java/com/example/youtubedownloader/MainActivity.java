@@ -25,6 +25,7 @@ import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.ImageButton;
+import android.widget.ProgressBar;
 import android.widget.Spinner;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -32,6 +33,7 @@ import android.widget.Toast;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.annotation.RequiresApi;
+import androidx.annotation.UiThread;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
@@ -74,6 +76,7 @@ public class MainActivity extends AppCompatActivity {
     Spinner videosResolution;
     ImageButton searchDirBttn;
     TextView directoryText;
+    ProgressBar progressBar;
 
     private VideoDetails details;
     private String videoURL;
@@ -103,6 +106,7 @@ public class MainActivity extends AppCompatActivity {
         saveButton = ((Button)findViewById(R.id.saveBttn));
         searchDirBttn = ((ImageButton)findViewById(R.id.searchDirBttn));
         directoryText = ((TextView)findViewById(R.id.directoryText));
+        progressBar = ((ProgressBar)findViewById(R.id.progressBar));
 
         Intent intent = getIntent();
         String link = intent.getStringExtra(Intent.EXTRA_TEXT);
@@ -434,13 +438,44 @@ public class MainActivity extends AppCompatActivity {
                 YoutubePlaylist playlist = downloader.getPlaylist(playlistID);
                 List<PlaylistVideoDetails> playlistVideosDetails = playlist.videos();
                 List<YoutubeVideo> videos = new ArrayList<>();
+                int sizeOfList = playlistVideosDetails.size();
+                final int[] count = {0};
+                runOnUiThread(new Runnable() {
+                    @Override
+                    public void run() {
+                        progressBar.setMax(100);
+                        progressBar.setProgress(0);
+                        progressBar.setVisibility(View.VISIBLE);
+                    }
+                });
                 for(PlaylistVideoDetails playlistVideoDetails : playlistVideosDetails) {
-                    videos.add(downloader.getVideo(playlistVideoDetails.videoId()));
-                    Log.e("Playlist ID", downloader.getVideo(playlistVideoDetails.videoId()).details().title());
+                    try {
+                        videos.add(downloader.getVideo(playlistVideoDetails.videoId()));
+                    } catch (YoutubeException e) {
+                        e.printStackTrace();
+                    }
+                    try {
+                        Log.e("Playlist ID", downloader.getVideo(playlistVideoDetails.videoId()).details().title());
+                    } catch (YoutubeException e) {
+                        e.printStackTrace();
+                    }
+                    runOnUiThread(new Runnable() {
+                        @Override
+                        public void run() {
+                            progressBar.setProgress((int) ((count[0] *100)/sizeOfList));
+                        }
+                    });
+                    count[0]++;
                 }
+
             } catch (YoutubeException e) {
-                textView.setText("Link corrompido");
-                textView.setVisibility(View.VISIBLE);
+                runOnUiThread(new Runnable() {
+                    @Override
+                    public void run() {
+                        textView.setText("Link corrompido");
+                        textView.setVisibility(View.VISIBLE);
+                    }
+                });
             }
             return null;
         }
